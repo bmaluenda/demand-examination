@@ -1,5 +1,7 @@
 import pandas as pd
 from datetime import datetime
+from matplotlib import pyplot as plt
+
 df = pd.read_excel("C:/Users/inodu_notebook_01/Desktop/Consumo Cristalerias 2014.xlsx")
 days=[31,28,31,30,31,30,31,31,30,31,30,31]
 dates=[]
