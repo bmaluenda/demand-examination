@@ -1,8 +1,10 @@
 import pandas as pd
 from datetime import datetime
 from matplotlib import pyplot as plt
+from scipy.cluster.hierarchy import dendrogram, linkage
+import numpy as np
 
-df = pd.read_excel("C:/Users/inodu_notebook_01/Desktop/Consumo Cristalerias 2014.xlsx")
+df = pd.read_excel("C:/Users/inodu_desk_01/Desktop/Sergio/Proyecto gestion demanda/Consumo Cristalerias 2014.xlsx")
 days=[31,28,31,30,31,30,31,31,30,31,30,31]
 dates=[]
 for m in [1,2,3,4,5,6,7,8,9,10,11,12]:
