@@ -44,18 +44,25 @@ def DTW(A, B, w = 2, d = lambda x,y: (x-y)**2):
     return (cost[-1, -1])**0.5 #, path
 
 pdf_plotter = PdfPages('outputs.pdf')
-def fig_ax():
+def fig_ax(title, ylim=None):
     fig = plt.figure()
     ax = fig.add_subplot(111)
+    ax.set_title(title)
+    if ylim is not None:
+        ax.set_ylim([0,ylim*1.07])
+        ax.set_yticks(np.arange(0, ylim*1.07, 1000))
     return fig, ax
-def save_close(fig):
-    pdf_plotter.savefig(fig)
+def save_close(fig, extra=None):
+    if extra is None:
+        pdf_plotter.savefig(fig)
+    else:
+        pdf_plotter.savefig(fig, bbox_extra_artists=(extra,), bbox_inches='tight')
     plt.close()
     pass
 
 df = pd.read_excel("C:/Users/inodu_notebook_01/Desktop/Consumo Cristalerias 2014.xlsx")
-fig, ax = fig_ax()
-df.plot(ax=ax)
+fig,ax = fig_ax('Consumo Cristalerias Chile 2014 (kWh)', df.max(0)[0])
+df.plot(ax=ax, use_index=True, legend=False, linewidth=0.5)
 save_close(fig)
 
 days_in_month=[31,28,31,30,31,30,31,31,30,31,30,31]
@@ -74,6 +81,7 @@ DFlist = [group[1] for group in df.groupby(df.index.date) \
 data = np.empty((n_days,24))
 for ind, DF in enumerate(DFlist):
     data[ind] = np.array(DF.transpose())[0]
+max_value = np.amax(data)
 
 # the linkage function may receive custom distances in a compact vector format
 distance_vector = np.zeros((1,n_days*(n_days-1)/2))
@@ -84,7 +92,7 @@ for d1 in range(n_days-1):
         a += 1
 
 Z=linkage(distance_vector[0], method='ward')
-fig, ax = fig_ax()
+fig, ax = fig_ax('Dendrogram')
 dendrogram(Z, truncate_mode='lastp', p=n_clust, get_leaves=True)
 save_close(fig)
 clusters = fcluster(Z, n_clust, criterion='maxclust')
@@ -92,7 +100,7 @@ clusters = fcluster(Z, n_clust, criterion='maxclust')
 # Representative curves for each cluster
 clusters_len = np.zeros((n_clust,1))
 rep_curves = np.zeros((n_clust,24))
-fig, ax = fig_ax()
+fig, ax = fig_ax('Average demand curves for each cluster (kW)', max_value)
 for c in range(n_clust):
     for d in range(n_days):
         if clusters[d] == c+1:
@@ -100,34 +108,40 @@ for c in range(n_clust):
             for j in range(24):
                 rep_curves[c][j] += data[d][j]
     rep_curves[c] /= clusters_len[c]
-    plt.plot(rep_curves[c],linewidth=0.03*clusters_len[c])
-save_close(fig)
+    ax.plot(rep_curves[c], linewidth=0.02*clusters_len[c], \
+             label='Cluster No. '+str(c+1)+'. Groups '+str(int(clusters_len[c][0]))+' days.')
+    lgd = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05))
+save_close(fig, lgd)
 
 # Curves in each cluster
 for c in range(n_clust):
-    fig, ax = fig_ax()
-    plt.ylim((np.amin(data)*0.95, np.amax(data)*1.05))
+    fig, ax = fig_ax('Daily sampled and average demand curves (kW) \n Cluster No. '+str(c+1), max_value)
     for d_ind, c_ind in enumerate(clusters):
         if c_ind == c+1:
             plt.plot(data[d_ind],color='blue')
-    plt.plot(rep_curves[c],color='red')
+    ax.plot(rep_curves[c],color='red')
     save_close(fig)
 
 # State of operation (cluster number)
-fig, ax = fig_ax()
-plt.plot([i for i in range(n_days)],clusters,".")
+fig, ax = fig_ax('State of operation (cluster number) by day')
+ax.set_yticks(np.arange(1, n_clust+1, 1))
+ax.plot([i for i in range(n_days)],clusters,".")
 save_close(fig)
 
 for c in range(n_clust):
     # Demand distributions in each hour for each operational mode
-    fig, ax = fig_ax()
-    plt.boxplot(data[[d for d in range(n_days) if clusters[d] == c+1],:])
+    fig, ax = fig_ax('Demand distributions in each hour for each operational mode \n Cluster No. '+str(c+1), max_value)
+    ax.boxplot(data[[d for d in range(n_days) if clusters[d] == c+1],:])
     save_close(fig)
     # Histogram of demand distribution for all hours in each operational mode
-    fig, ax = fig_ax()
-    plt.hist(data[[d for d in range(n_days) \
+    fig, ax = fig_ax('Histogram of demand distribution for all hours in each operational mode \n Cluster No. '+str(c+1))
+    ax.set_xlim([0,max_value*1.07])
+    ax.hist(data[[d for d in range(n_days) \
                    if clusters[d] == c+1],:].flatten(), \
-                        normed=True, bins='auto')
+                        normed=False, bins='auto')
     save_close(fig)
-
+fig, ax = fig_ax('Histogram of demand distribution for all hours and days')
+ax.set_xlim([0,max_value*1.07])
+ax.hist(data.flatten(), normed=False, bins=300)
+save_close(fig)
 pdf_plotter.close()
